@@ -16,13 +16,13 @@ let data = {
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
-    console.log('✅ Data loaded');
+    console.log('✅ Data loaded from file');
   } catch(e) { console.error('Load error', e); }
 }
 
 function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log('💾 Saved');
+  console.log('💾 Data saved');
 }
 
 // API
@@ -49,10 +49,9 @@ app.delete('/api/:collection/:id', (req, res) => {
   res.json({ success: true });
 });
 
-// Специально для сообщений (массив)
+// Для сообщений (массив)
 app.put('/api/messages/:convId', (req, res) => {
-  const convId = req.params.convId;
-  data.messages[convId] = req.body;
+  data.messages[req.params.convId] = req.body;
   save();
   res.json({ success: true });
 });
