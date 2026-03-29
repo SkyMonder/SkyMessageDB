@@ -1,99 +1,79 @@
 const express = require('express');
 const fs = require('fs');
-const path = require('path');
-const cron = require('node-cron');
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 
 const DATA_FILE = './data.json';
+
+// Структура данных
 let data = {
-  users: [],
-  sessions: [],
-  messages: [],
-  groups: [],
-  channels: []
+  users: {},
+  sessions: {},
+  messages: {},
+  groups: {},
+  channels: {}
 };
 
-// Загрузка из файла при старте
+// Загрузка при старте
 if (fs.existsSync(DATA_FILE)) {
-  data = JSON.parse(fs.readFileSync(DATA_FILE));
-  console.log('Data loaded from file');
+  try {
+    data = JSON.parse(fs.readFileSync(DATA_FILE));
+    console.log('✅ Data loaded from file');
+  } catch(e) { console.error('Load error', e); }
 }
 
-// Функция сохранения в файл
-function saveToFile() {
+function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log('Data saved to file');
+  console.log('💾 Data saved');
 }
 
-// API: получение всех данных (для бэкапа)
+// Логирование действий
+function log(action, details) {
+  console.log(`[${new Date().toISOString()}] ${action}`, details);
+}
+
+// API: получить все данные (для бэкапа)
 app.get('/api/data', (req, res) => {
   res.json(data);
 });
 
-// API: обновление конкретной коллекции
-app.post('/api/:collection', (req, res) => {
-  const { collection } = req.params;
-  const newData = req.body;
-  if (data.hasOwnProperty(collection)) {
-    data[collection] = newData;
-    saveToFile(); // сразу сохраняем
-    res.json({ success: true });
-  } else {
-    res.status(400).json({ error: 'Invalid collection' });
-  }
+// API: получить конкретную коллекцию
+app.get('/api/:collection', (req, res) => {
+  const coll = req.params.collection;
+  if (data[coll]) res.json(data[coll]);
+  else res.status(404).json({ error: 'Collection not found' });
 });
 
-// API: добавление элемента в коллекцию
-app.post('/api/:collection/add', (req, res) => {
-  const { collection } = req.params;
+// API: обновить или создать запись в коллекции
+app.put('/api/:collection/:id', (req, res) => {
+  const { collection, id } = req.params;
   const item = req.body;
-  if (data.hasOwnProperty(collection) && Array.isArray(data[collection])) {
-    data[collection].push(item);
-    saveToFile();
-    res.json({ success: true });
-  } else {
-    res.status(400).json({ error: 'Invalid collection' });
-  }
+  if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
+  data[collection][id] = item;
+  save();
+  log(`PUT ${collection}/${id}`, item);
+  res.json({ success: true });
 });
 
-// API: удаление элемента из коллекции
-app.post('/api/:collection/remove', (req, res) => {
-  const { collection } = req.params;
-  const { id } = req.body;
-  if (data.hasOwnProperty(collection) && Array.isArray(data[collection])) {
-    data[collection] = data[collection].filter(item => item.id !== id);
-    saveToFile();
-    res.json({ success: true });
-  } else {
-    res.status(400).json({ error: 'Invalid collection' });
-  }
+// API: удалить запись
+app.delete('/api/:collection/:id', (req, res) => {
+  const { collection, id } = req.params;
+  if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
+  delete data[collection][id];
+  save();
+  log(`DELETE ${collection}/${id}`, {});
+  res.json({ success: true });
 });
 
-// API: обновление конкретного элемента
-app.post('/api/:collection/update', (req, res) => {
-  const { collection } = req.params;
-  const { id, updates } = req.body;
-  if (data.hasOwnProperty(collection) && Array.isArray(data[collection])) {
-    const index = data[collection].findIndex(item => item.id === id);
-    if (index !== -1) {
-      data[collection][index] = { ...data[collection][index], ...updates };
-      saveToFile();
-      res.json({ success: true });
-    } else {
-      res.status(404).json({ error: 'Item not found' });
-    }
-  } else {
-    res.status(400).json({ error: 'Invalid collection' });
-  }
-});
-
-// Cron job: каждые 15 минут сохраняем данные (дублируем saveToFile, но можно и в облако)
-cron.schedule('*/15 * * * *', () => {
-  console.log('Cron: periodic save');
-  saveToFile();
-  // Здесь можно отправить копию на внешнее хранилище (S3, Google Drive и т.д.)
+// Специальный эндпоинт для сообщений (массив по convId)
+app.put('/api/messages/:convId', (req, res) => {
+  const convId = req.params.convId;
+  const messages = req.body;
+  data.messages[convId] = messages;
+  save();
+  log(`PUT messages/${convId}`, { count: messages.length });
+  res.json({ success: true });
 });
 
 const PORT = process.env.PORT || 3001;
