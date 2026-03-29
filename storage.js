@@ -16,18 +16,25 @@ let data = {
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
-    console.log('✅ Data loaded');
+    console.log('✅ Data loaded from file');
   } catch(e) { console.error('Load error', e); }
 }
 
 function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log('💾 Saved');
+  console.log('💾 Data saved');
 }
+
+// Логирование запросов
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 
 // API
 app.get('/api/:collection', (req, res) => {
   const coll = req.params.collection;
+  console.log(`GET /api/${coll}`);
   if (data[coll]) res.json(data[coll]);
   else res.status(404).json({ error: 'Collection not found' });
 });
@@ -35,6 +42,7 @@ app.get('/api/:collection', (req, res) => {
 app.put('/api/:collection/:id', (req, res) => {
   const { collection, id } = req.params;
   const item = req.body;
+  console.log(`PUT /api/${collection}/${id}`, item ? Object.keys(item) : null);
   if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
   data[collection][id] = item;
   save();
@@ -43,15 +51,18 @@ app.put('/api/:collection/:id', (req, res) => {
 
 app.delete('/api/:collection/:id', (req, res) => {
   const { collection, id } = req.params;
+  console.log(`DELETE /api/${collection}/${id}`);
   if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
   delete data[collection][id];
   save();
   res.json({ success: true });
 });
 
-// Для сообщений (массив)
 app.put('/api/messages/:convId', (req, res) => {
-  data.messages[req.params.convId] = req.body;
+  const convId = req.params.convId;
+  const messages = req.body;
+  console.log(`PUT /api/messages/${convId} - ${messages.length} messages`);
+  data.messages[convId] = messages;
   save();
   res.json({ success: true });
 });
