@@ -16,13 +16,13 @@ let data = {
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
-    console.log('✅ Data loaded from file');
+    console.log('✅ Data loaded');
   } catch(e) { console.error('Load error', e); }
 }
 
 function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log('💾 Data saved');
+  console.log('💾 Saved');
 }
 
 // API
