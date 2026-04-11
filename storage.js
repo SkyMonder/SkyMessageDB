@@ -2,7 +2,14 @@ const express = require('express');
 const fs = require('fs');
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '2gb' }));
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 
 const DATA_FILE = './data.json';
 let data = {
@@ -25,49 +32,35 @@ function save() {
   console.log('💾 Data saved');
 }
 
-// Health check для cron job
-app.get('/healthz', (req, res) => {
-  res.status(200).send('OK');
-});
+app.get('/healthz', (req, res) => res.send('OK'));
 
-// Логирование запросов
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// API
 app.get('/api/:collection', (req, res) => {
   const coll = req.params.collection;
-  console.log(`GET /api/${coll}`);
   if (data[coll]) res.json(data[coll]);
   else res.status(404).json({ error: 'Collection not found' });
 });
 
 app.put('/api/:collection/:id', (req, res) => {
   const { collection, id } = req.params;
-  const item = req.body;
-  console.log(`PUT /api/${collection}/${id}`, item ? Object.keys(item) : null);
-  if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
-  data[collection][id] = item;
+  data[collection][id] = req.body;
   save();
   res.json({ success: true });
 });
 
 app.delete('/api/:collection/:id', (req, res) => {
   const { collection, id } = req.params;
-  console.log(`DELETE /api/${collection}/${id}`);
-  if (!data[collection]) return res.status(400).json({ error: 'Invalid collection' });
   delete data[collection][id];
   save();
   res.json({ success: true });
 });
 
 app.put('/api/messages/:convId', (req, res) => {
-  const convId = req.params.convId;
-  const messages = req.body;
-  console.log(`PUT /api/messages/${convId} - ${messages.length} messages`);
-  data.messages[convId] = messages;
+  data.messages[req.params.convId] = req.body;
   save();
   res.json({ success: true });
 });
