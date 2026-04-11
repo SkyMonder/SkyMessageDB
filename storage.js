@@ -25,6 +25,11 @@ function save() {
   console.log('💾 Data saved');
 }
 
+// Health check для cron job
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Логирование запросов
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
