@@ -2,14 +2,7 @@ const express = require('express');
 const fs = require('fs');
 
 const app = express();
-app.use(express.json({ limit: '2gb' }));
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
-  next();
-});
+app.use(express.json({ limit: '50mb' }));
 
 const DATA_FILE = './data.json';
 let data = {
@@ -23,26 +16,21 @@ let data = {
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
-    console.log('✅ Data loaded from file');
+    console.log('Data loaded');
   } catch(e) { console.error('Load error', e); }
 }
 
 function save() {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  console.log('💾 Data saved');
+  console.log('Data saved');
 }
 
 app.get('/healthz', (req, res) => res.send('OK'));
 
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
 app.get('/api/:collection', (req, res) => {
   const coll = req.params.collection;
   if (data[coll]) res.json(data[coll]);
-  else res.status(404).json({ error: 'Collection not found' });
+  else res.status(404).json({ error: 'Not found' });
 });
 
 app.put('/api/:collection/:id', (req, res) => {
